@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'admin';
+    }
+
+    function isSupervisor() {
+      return isAuthenticated() && (getUserRole() == 'supervisor' || getUserRole() == 'admin');
+    }
+
+    function isRepositor() {
+      return isAuthenticated() && (getUserRole() == 'repositor' || getUserRole() == 'supervisor' || getUserRole() == 'admin');
+    }
+
+    function isStaff() {
+      return isAuthenticated() && (getUserRole() == 'repositor' || getUserRole() == 'supervisor' || getUserRole() == 'admin');
+    }
+
+    match /users/{uid} {
+      allow read: if isAuthenticated() && (request.auth.uid == uid || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == uid;
+      allow update: if isAdmin() || request.auth.uid == uid;
+      allow delete: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isStaff();
+      allow update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /alerts/{alertId} {
+      allow read: if isStaff();
+      allow create: if isStaff();
+      allow update: if isSupervisor();
+      allow delete: if isAdmin();
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isSupervisor();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+  }
+}
