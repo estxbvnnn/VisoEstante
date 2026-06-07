@@ -32,7 +32,10 @@ export default function Reports() {
   const canExport = [ROLES.ADMIN, ROLES.SUPERVISOR].includes(userData?.role);
 
   function handleExportProducts() {
-    exportProductsToExcel(products, 'reporte-productos.xlsx');
+    exportProductsToExcel(products, 'reporte-productos.xlsx', {
+      generatedBy: userData?.displayName || userData?.email,
+      role: userData?.role,
+    });
   }
 
   return (

@@ -22,7 +22,10 @@ export default function Alerts() {
   const canExport = [ROLES.ADMIN, ROLES.SUPERVISOR].includes(userData?.role);
 
   function handleExportAlerts() {
-    exportAlertsToExcel(filtered, 'reporte-alertas.xlsx');
+    exportAlertsToExcel(filtered, 'reporte-alertas.xlsx', {
+      generatedBy: userData?.displayName || userData?.email,
+      role: userData?.role,
+    });
   }
 
   async function handleResolve(alertId) {

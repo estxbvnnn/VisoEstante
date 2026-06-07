@@ -38,7 +38,10 @@ export default function Dashboard() {
   }
 
   function handleExportDashboard() {
-    exportGeneralDashboardToExcel(products, alerts, 'reporte-general-dashboard.xlsx');
+    exportGeneralDashboardToExcel(products, alerts, 'reporte-general-dashboard.xlsx', {
+      generatedBy: userData?.displayName || userData?.email,
+      role: userData?.role,
+    });
   }
 
   const categories = ['all', ...new Set(products.map((p) => p.category).filter(Boolean))];
