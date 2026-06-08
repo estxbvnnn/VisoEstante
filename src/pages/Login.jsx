@@ -1,18 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signIn, registerUser, getUserRole } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 import { ROLE_DEFAULT_ROUTES, ROLES, ROLE_LABELS } from '../constants/roles';
 import toast from 'react-hot-toast';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { user, userData, loading } = useAuth();
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState(ROLES.REPOSITOR);
-  const [loading, setLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
 
   function resetForm() {
     setEmail('');
@@ -29,7 +31,7 @@ export default function Login() {
 
   async function handleLogin(e) {
     e.preventDefault();
-    setLoading(true);
+    setFormLoading(true);
     try {
       const user = await signIn(email, password);
       const userRole = await getUserRole(user.uid);
@@ -38,7 +40,7 @@ export default function Login() {
     } catch (err) {
       toast.error(getErrorMessage(err.code));
     } finally {
-      setLoading(false);
+      setFormLoading(false);
     }
   }
 
@@ -52,7 +54,7 @@ export default function Login() {
       toast.error('La contraseña debe tener más de 6 caracteres.');
       return;
     }
-    setLoading(true);
+    setFormLoading(true);
     try {
       await registerUser(email, password, displayName, role);
       toast.success('Cuenta creada correctamente. Iniciando sesión…');
@@ -61,9 +63,16 @@ export default function Login() {
     } catch (err) {
       toast.error(getRegisterErrorMessage(err.code));
     } finally {
-      setLoading(false);
+      setFormLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!loading && user) {
+      const route = ROLE_DEFAULT_ROUTES[userData?.role] || '/dashboard';
+      navigate(route, { replace: true });
+    }
+  }, [loading, user, userData, navigate]);
 
   function getErrorMessage(code) {
     const messages = {
@@ -153,10 +162,10 @@ export default function Login() {
             </div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={formLoading}
               className="mt-2 w-full py-2.5 bg-blue-600 text-white rounded-lg font-semibold text-sm hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? (
+              {formLoading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                   Iniciando sesión…
@@ -245,10 +254,10 @@ export default function Login() {
             </div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={formLoading}
               className="mt-2 w-full py-2.5 bg-blue-600 text-white rounded-lg font-semibold text-sm hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? (
+              {formLoading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                   Creando cuenta…
