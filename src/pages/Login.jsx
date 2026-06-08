@@ -49,7 +49,7 @@ export default function Login() {
       return;
     }
     if (password.length < 6) {
-      toast.error('La contraseña debe tener al menos 6 caracteres.');
+      toast.error('La contraseña debe tener más de 6 caracteres.');
       return;
     }
     setLoading(true);
