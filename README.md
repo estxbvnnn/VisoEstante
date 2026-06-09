@@ -5,8 +5,6 @@ de góndola de forma inteligente: sabe qué productos están **por vencer**, cu�
 **stock bajo** y muestra **precios actualizados en tiempo real**, evitando pérdidas y mejorando
 la experiencia del cliente.
 
-> En pocas palabras: un panel de control que vigila los estantes por ti.
-
 ---
 
 ## 📌 ¿Qué problema resuelve?
