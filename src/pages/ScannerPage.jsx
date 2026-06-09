@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { calculateProductStatus } from '../utils/statusUtils';
 import { formatCLP } from '../utils/formatUtils';
 import { formatChileanDate } from '../utils/dateUtils';
-import { PRODUCT_CATEGORIES } from '../constants/productCategories';
+import { PRODUCT_CATEGORIES, PRODUCT_CATEGORY_DESCRIPTIONS } from '../constants/productCategories';
 import {
   isFutureOrToday,
   parseNonNegativeInteger,
@@ -53,7 +53,7 @@ export default function ScannerPage() {
       } else {
         setStep(STEPS.NEW_PRODUCT_FORM);
       }
-    } catch (err) {
+    } catch {
       toast.error('Error al buscar el producto');
       setStep(STEPS.SCAN_BARCODE);
     } finally {
@@ -76,7 +76,7 @@ export default function ScannerPage() {
       }
       toast.success('Stock actualizado');
       navigate('/dashboard');
-    } catch (err) {
+    } catch {
       toast.error('Error al actualizar stock');
     } finally {
       setSaving(false);
@@ -129,7 +129,7 @@ export default function ScannerPage() {
       }
       toast.success('Producto registrado');
       navigate('/dashboard');
-    } catch (err) {
+    } catch {
       toast.error('Error al guardar el producto');
     } finally {
       setSaving(false);
@@ -220,6 +220,9 @@ export default function ScannerPage() {
                   <option value="">Seleccionar…</option>
                   {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
+                {newProductData.category && PRODUCT_CATEGORY_DESCRIPTIONS[newProductData.category] && (
+                  <p className="mt-1.5 text-xs text-slate-500">{PRODUCT_CATEGORY_DESCRIPTIONS[newProductData.category]}</p>
+                )}
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-700">Precio (CLP) *</label>

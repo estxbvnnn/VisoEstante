@@ -5,7 +5,7 @@ import { addProduct, updateProduct } from '../services/productService';
 import { useAuth } from '../context/AuthContext';
 import { calculateProductStatus } from '../utils/statusUtils';
 import { Timestamp } from 'firebase/firestore';
-import { PRODUCT_CATEGORIES } from '../constants/productCategories';
+import { PRODUCT_CATEGORIES, PRODUCT_CATEGORY_DESCRIPTIONS } from '../constants/productCategories';
 import {
   isFutureOrToday,
   parseNonNegativeNumber,
@@ -79,7 +79,7 @@ export default function ProductManager() {
         toast.success('Producto creado');
       }
       setModalOpen(false);
-    } catch (err) {
+    } catch {
       toast.error('Error al guardar el producto');
     } finally {
       setSaving(false);
@@ -188,6 +188,9 @@ export default function ProductManager() {
               <option value="">Seleccionar…</option>
               {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
+            {form.category && PRODUCT_CATEGORY_DESCRIPTIONS[form.category] && (
+              <p className="mt-1.5 text-xs text-slate-500">{PRODUCT_CATEGORY_DESCRIPTIONS[form.category]}</p>
+            )}
           </div>
         </div>
         <div className="flex gap-2 justify-end mt-4">

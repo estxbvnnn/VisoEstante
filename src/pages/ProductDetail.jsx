@@ -77,16 +77,14 @@ export default function ProductDetail() {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl shadow-slate-900/5 backdrop-blur-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Imagen</p>
-                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                  {product.imageUrl ? (
+              {product.imageUrl && (
+                <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl shadow-slate-900/5 backdrop-blur-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Imagen</p>
+                  <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
                     <img src={product.imageUrl} alt={product.name} className="h-64 w-full object-cover" />
-                  ) : (
-                    <div className="flex h-64 items-center justify-center text-6xl text-slate-300">🛍</div>
-                  )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}

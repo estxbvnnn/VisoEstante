@@ -1,1 +1,115 @@
 @import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Animaciones y utilidades globales de VisoEstante
+   --------------------------------------------------------------------------- */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -480px 0;
+  }
+  100% {
+    background-position: 480px 0;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Blobs flotantes para el fondo animado del Login */
+@keyframes blob {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(36px, -44px) scale(1.12);
+  }
+  66% {
+    transform: translate(-28px, 24px) scale(0.92);
+  }
+}
+.animate-blob {
+  animation: blob 16s ease-in-out infinite;
+}
+
+/* Degradado que se desplaza lentamente */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradientShift 12s ease infinite;
+}
+
+/* Respeta a quien prefiere menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  .animate-blob,
+  .animate-gradient,
+  .animate-fade-in-up {
+    animation: none;
+  }
+}
+
+/* Pequeño punto "en vivo" con pulso suave */
+.live-dot {
+  position: relative;
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: #10b981;
+}
+.live-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: #10b981;
+  opacity: 0.6;
+  animation: ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes ping {
+  75%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+/* Scrollbar más fina y elegante */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

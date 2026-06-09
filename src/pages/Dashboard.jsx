@@ -4,18 +4,20 @@ import { useProducts } from '../hooks/useProducts';
 import { useAlerts } from '../hooks/useAlerts';
 import { useAuth } from '../context/AuthContext';
 import { signOut } from '../services/authService';
-import { updatePrice } from '../services/productService';
-import { updateStock } from '../services/productService';
+import { updatePrice, updateStock } from '../services/productService';
 import AlertBanner from '../components/alerts/AlertBanner';
 import StatusBadge from '../components/ui/StatusBadge';
-import SkeletonCard from '../components/ui/SkeletonCard';
 import Modal from '../components/ui/Modal';
+import KpiCard from '../components/ui/KpiCard';
+import DonutChart from '../components/ui/DonutChart';
 import { formatCLP } from '../utils/formatUtils';
 import { formatChileanDate, getDaysToExpiry } from '../utils/dateUtils';
 import { PRODUCT_STATUS } from '../constants/productStatus';
 import { ROLE_LABELS } from '../constants/roles';
 import toast from 'react-hot-toast';
 import { exportGeneralDashboardToExcel } from '../utils/exportUtils';
+
+const LOW_STOCK_THRESHOLD = 20;
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -45,6 +47,7 @@ export default function Dashboard() {
   }
 
   const categories = ['all', ...new Set(products.map((p) => p.category).filter(Boolean))];
+  const filtersActive = search || filterStatus !== 'all' || filterCategory !== 'all';
 
   const filtered = products.filter((p) => {
     const matchSearch =
@@ -56,6 +59,21 @@ export default function Dashboard() {
     return matchSearch && matchStatus && matchCategory;
   });
 
+  function clearFilters() {
+    setSearch('');
+    setFilterStatus('all');
+    setFilterCategory('all');
+  }
+
+  const vigentes = products.filter((p) => p.status === PRODUCT_STATUS.VIGENTE).length;
+  const inventoryValue = products.reduce(
+    (sum, p) => sum + (Number(p.currentStock) || 0) * (Number(p.price) || 0),
+    0
+  );
+  const lowStockCount = products.filter(
+    (p) => p.currentStock > 0 && p.currentStock <= p.minStock
+  ).length;
+
   const kpis = {
     total: products.length,
     sinStock: products.filter((p) => p.status === PRODUCT_STATUS.SIN_STOCK).length,
@@ -65,16 +83,26 @@ export default function Dashboard() {
 
   const stockBuckets = [
     { label: 'Crítico', value: products.filter((p) => p.currentStock === 0).length, color: 'bg-rose-500' },
-    { label: 'Bajo', value: products.filter((p) => p.currentStock > 0 && p.currentStock < 20).length, color: 'bg-amber-500' },
-    { label: 'Sano', value: products.filter((p) => p.currentStock >= 20).length, color: 'bg-emerald-500' },
+    { label: 'Bajo', value: products.filter((p) => p.currentStock > 0 && p.currentStock < LOW_STOCK_THRESHOLD).length, color: 'bg-amber-500' },
+    { label: 'Sano', value: products.filter((p) => p.currentStock >= LOW_STOCK_THRESHOLD).length, color: 'bg-emerald-500' },
   ];
 
-  const statusBuckets = [
-    { label: 'Vigente', value: products.filter((p) => p.status === PRODUCT_STATUS.VIGENTE).length, color: 'bg-emerald-500' },
-    { label: 'Por vencer', value: products.filter((p) => p.status === PRODUCT_STATUS.POR_VENCER).length, color: 'bg-amber-500' },
-    { label: 'Vencido', value: products.filter((p) => p.status === PRODUCT_STATUS.VENCIDO).length, color: 'bg-rose-500' },
-    { label: 'Sin stock', value: products.filter((p) => p.status === PRODUCT_STATUS.SIN_STOCK).length, color: 'bg-slate-500' },
+  const statusDonut = [
+    { label: 'Vigente', value: vigentes, color: '#10b981' },
+    { label: 'Por vencer', value: kpis.porVencer, color: '#f59e0b' },
+    { label: 'Vencido', value: kpis.vencidos, color: '#f43f5e' },
+    { label: 'Sin stock', value: kpis.sinStock, color: '#64748b' },
   ];
+
+  const priority = {
+    [PRODUCT_STATUS.VENCIDO]: 0,
+    [PRODUCT_STATUS.SIN_STOCK]: 1,
+    [PRODUCT_STATUS.POR_VENCER]: 2,
+  };
+  const attention = products
+    .filter((p) => p.status !== PRODUCT_STATUS.VIGENTE)
+    .sort((a, b) => (priority[a.status] ?? 9) - (priority[b.status] ?? 9))
+    .slice(0, 6);
 
   async function handleSavePrice() {
     if (!editPriceProduct) return;
@@ -86,7 +114,7 @@ export default function Dashboard() {
       toast.success('Precio actualizado');
       setEditPriceProduct(null);
       setNewPrice('');
-    } catch (err) {
+    } catch {
       toast.error('Error al actualizar precio');
     } finally {
       setSaving(false);
@@ -103,7 +131,7 @@ export default function Dashboard() {
       toast.success('Stock actualizado');
       setEditStockProduct(null);
       setNewStock('');
-    } catch (err) {
+    } catch {
       toast.error('Error al actualizar stock');
     } finally {
       setSaving(false);
@@ -128,6 +156,9 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-3">
+            <span className="hidden items-center gap-2 rounded-full border border-emerald-200/70 bg-emerald-50/80 px-3 py-1.5 text-xs font-medium text-emerald-700 sm:inline-flex">
+              <span className="live-dot" /> En vivo
+            </span>
             <Link
               to="/products"
               className="hidden sm:inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
@@ -154,7 +185,8 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        <section className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/85 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm">
+        {/* Hero */}
+        <section className="animate-fade-in-up overflow-hidden rounded-[2rem] border border-white/70 bg-white/85 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm">
           <div className="h-1 bg-gradient-to-r from-emerald-500 via-blue-500 to-amber-400" />
           <div className="p-6">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -169,39 +201,52 @@ export default function Dashboard() {
                 <div className="flex flex-wrap gap-3 pt-2">
                   <button
                     onClick={handleExportDashboard}
-                    className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5 hover:bg-slate-800"
+                    className="inline-flex items-center gap-2 justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5 hover:bg-slate-800"
                   >
-                    Exportar Excel
+                    <span>📊</span> Exportar Excel
                   </button>
                   <Link
                     to="/reports"
-                    className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                    className="inline-flex items-center gap-2 justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
                   >
-                    Ver reportes avanzados
+                    <span>📈</span> Ver reportes avanzados
                   </Link>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:w-[30rem]">
-                <StatTile label="Total" value={kpis.total} accent="from-blue-500 to-cyan-500" loading={loading} />
-                <StatTile label="Por vencer" value={kpis.porVencer} accent="from-amber-500 to-orange-500" loading={loading} />
-                <StatTile label="Vencidos" value={kpis.vencidos} accent="from-rose-500 to-red-600" loading={loading} />
-                <StatTile label="Sin stock" value={kpis.sinStock} accent="from-slate-500 to-slate-700" loading={loading} />
+              <div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm lg:w-72">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700">Valoración de inventario</p>
+                <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+                  {loading ? '—' : formatCLP(inventoryValue)}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">{kpis.total} productos · {vigentes} vigentes</p>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-2">
-          <ChartCard title="Distribución de stock" subtitle="Umbral operativo con foco en bajo stock">
+        {/* KPI cards */}
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <KpiCard icon="📦" label="Total productos" value={kpis.total} sub={`${vigentes} vigentes`} accent="from-blue-500 to-cyan-500" tone="text-blue-600" loading={loading} delay={0} />
+          <KpiCard icon="💰" label="Valor inventario" value={loading ? '—' : formatCLP(inventoryValue)} sub="stock × precio" accent="from-emerald-500 to-teal-500" tone="text-emerald-600" loading={loading} delay={60} />
+          <KpiCard icon="⏳" label="Por vencer" value={kpis.porVencer} sub="≤ 30 días" accent="from-amber-500 to-orange-500" tone="text-amber-600" loading={loading} delay={120} />
+          <KpiCard icon="📉" label="Stock bajo" value={lowStockCount} sub="≤ mínimo" accent="from-yellow-500 to-amber-500" tone="text-yellow-600" loading={loading} delay={180} />
+          <KpiCard icon="🚫" label="Vencidos" value={kpis.vencidos} sub="retirar" accent="from-rose-500 to-red-600" tone="text-rose-600" loading={loading} delay={240} />
+          <KpiCard icon="⛔" label="Sin stock" value={kpis.sinStock} sub="reponer" accent="from-slate-500 to-slate-700" tone="text-slate-600" loading={loading} delay={300} />
+        </section>
+
+        {/* Insights: donut + bar + attention */}
+        <section className="grid gap-6 lg:grid-cols-3">
+          <ChartCard title="Distribución por estado" subtitle="Lectura rápida del inventario">
+            <DonutChart items={statusDonut} />
+          </ChartCard>
+          <ChartCard title="Distribución de stock" subtitle="Foco en bajo stock">
             <MiniBarChart items={stockBuckets} />
           </ChartCard>
-          <ChartCard title="Distribución por estado" subtitle="Lectura rápida del inventario">
-            <MiniBarChart items={statusBuckets} />
-          </ChartCard>
+          <AttentionCard items={attention} loading={loading} />
         </section>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-3 items-center rounded-[1.75rem] border border-white/70 bg-white/75 p-4 shadow-[0_18px_40px_rgba(15,23,42,0.06)] backdrop-blur-sm">
+        <div className="flex flex-wrap items-center gap-3 rounded-[1.75rem] border border-white/70 bg-white/75 p-4 shadow-[0_18px_40px_rgba(15,23,42,0.06)] backdrop-blur-sm">
           <input
             type="search"
             placeholder="Buscar por nombre o código…"
@@ -229,13 +274,24 @@ export default function Dashboard() {
               <option key={cat} value={cat}>{cat === 'all' ? 'Todas las categorías' : cat}</option>
             ))}
           </select>
+          <span className="ml-auto text-xs font-medium text-slate-500">
+            {filtered.length} de {products.length} productos
+          </span>
+          {filtersActive && (
+            <button
+              onClick={clearFilters}
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-rose-200 hover:text-rose-600"
+            >
+              Limpiar filtros
+            </button>
+          )}
         </div>
 
         {/* Products Table */}
         <div className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/88 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50/95 border-b border-slate-200">
+              <thead className="sticky top-0 bg-slate-50/95 border-b border-slate-200 backdrop-blur">
                 <tr>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Producto</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Código</th>
@@ -311,29 +367,41 @@ export default function Dashboard() {
               </tbody>
             </table>
             {!loading && filtered.length === 0 && (
-              <p className="text-center text-slate-400 py-8">No se encontraron productos.</p>
+              <div className="flex flex-col items-center gap-2 py-12 text-center">
+                <span className="text-3xl">🔍</span>
+                <p className="text-sm text-slate-500">No se encontraron productos con esos filtros.</p>
+                {filtersActive && (
+                  <button onClick={clearFilters} className="text-sm font-medium text-emerald-700 hover:underline">
+                    Limpiar filtros
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>
       </main>
 
       {/* Edit Price Modal */}
-      <Modal open={!!editPriceProduct} onClose={() => { setEditPriceProduct(null); setNewPrice(''); }} title="Editar precio">
-          <div className="flex flex-col gap-4">
-          <p className="text-sm text-gray-600">{editPriceProduct?.name}</p>
+      <Modal
+        open={!!editPriceProduct}
+        onClose={() => { setEditPriceProduct(null); setNewPrice(''); }}
+        title="Editar precio"
+        subtitle={editPriceProduct?.name}
+      >
+        <div className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nuevo precio (CLP)</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Nuevo precio (CLP)</label>
             <input
               type="number"
               min="0"
               value={newPrice}
               onChange={(e) => setNewPrice(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
             />
           </div>
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => setEditPriceProduct(null)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancelar</button>
-            <button onClick={handleSavePrice} disabled={saving} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setEditPriceProduct(null)} className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50">Cancelar</button>
+            <button onClick={handleSavePrice} disabled={saving} className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
               {saving ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
@@ -341,22 +409,26 @@ export default function Dashboard() {
       </Modal>
 
       {/* Edit Stock Modal */}
-      <Modal open={!!editStockProduct} onClose={() => { setEditStockProduct(null); setNewStock(''); }} title="Actualizar stock">
+      <Modal
+        open={!!editStockProduct}
+        onClose={() => { setEditStockProduct(null); setNewStock(''); }}
+        title="Actualizar stock"
+        subtitle={editStockProduct?.name}
+      >
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-gray-600">{editStockProduct?.name}</p>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad actual</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Cantidad actual</label>
             <input
               type="number"
               min="0"
               value={newStock}
               onChange={(e) => setNewStock(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
             />
           </div>
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => setEditStockProduct(null)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg">Cancelar</button>
-            <button onClick={handleSaveStock} disabled={saving} className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setEditStockProduct(null)} className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50">Cancelar</button>
+            <button onClick={handleSaveStock} disabled={saving} className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50">
               {saving ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
@@ -366,21 +438,9 @@ export default function Dashboard() {
   );
 }
 
-function StatTile({ label, value, accent, loading }) {
-  return (
-    <div className="group overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
-      <div className={`h-1.5 w-14 rounded-full bg-gradient-to-r ${accent}`} />
-      <p className="mt-3 text-[10px] uppercase tracking-[0.22em] text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-        {loading ? '—' : value}
-      </p>
-    </div>
-  );
-}
-
 function ChartCard({ title, subtitle, children }) {
   return (
-    <div className="rounded-[2rem] border border-white/70 bg-white/85 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm">
+    <div className="animate-fade-in-up rounded-[2rem] border border-white/70 bg-white/85 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm">
       <div className="mb-4">
         <h3 className="text-base font-semibold text-slate-900">{title}</h3>
         <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
@@ -392,9 +452,8 @@ function ChartCard({ title, subtitle, children }) {
 
 function MiniBarChart({ items }) {
   const max = Math.max(...items.map((item) => item.value), 1);
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pt-2">
       {items.map((item) => (
         <div key={item.label} className="space-y-1">
           <div className="flex items-center justify-between text-sm">
@@ -403,12 +462,55 @@ function MiniBarChart({ items }) {
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-slate-100">
             <div
-              className={`h-full rounded-full ${item.color}`}
+              className={`h-full rounded-full ${item.color} transition-all duration-700`}
               style={{ width: `${(item.value / max) * 100}%` }}
             />
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function AttentionCard({ items, loading }) {
+  return (
+    <div className="animate-fade-in-up flex flex-col rounded-[2rem] border border-white/70 bg-white/85 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-slate-900">Requieren atención</h3>
+          <p className="mt-1 text-sm text-slate-500">Prioridad: vencidos y sin stock</p>
+        </div>
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-lg ring-1 ring-rose-100">🚨</span>
+      </div>
+      {loading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-10 rounded-xl bg-slate-100 animate-pulse" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-6 text-center">
+          <span className="text-3xl">✅</span>
+          <p className="text-sm text-slate-500">Todo en orden. Sin productos críticos.</p>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {items.map((p) => (
+            <li key={p.id}>
+              <Link
+                to={`/products/${p.id}`}
+                className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2 transition hover:border-emerald-200 hover:bg-emerald-50/40"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-slate-800">{p.name}</p>
+                  <p className="truncate text-xs text-slate-400">{p.category} · {p.shelfLocation || 'Sin ubicación'}</p>
+                </div>
+                <StatusBadge status={p.status} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
