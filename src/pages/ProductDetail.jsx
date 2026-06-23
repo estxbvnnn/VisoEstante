@@ -3,6 +3,8 @@ import { useProduct } from '../hooks/useProduct';
 import StatusBadge from '../components/ui/StatusBadge';
 import SkeletonCard from '../components/ui/SkeletonCard';
 import { formatCLP } from '../utils/formatUtils';
+import { getPriceBreakdown } from '../utils/taxUtils';
+import { IVA_LABEL } from '../constants/tax';
 import { formatChileanDate, getDaysToExpiry, getExpiryLabel } from '../utils/dateUtils';
 import { useAuth } from '../context/AuthContext';
 import { ROLES } from '../constants/roles';
@@ -49,9 +51,9 @@ export default function ProductDetail() {
               </div>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <PriceBreakdownCard price={product.price} />
                 <DetailCard label="Código" value={product.barcode} mono />
                 <DetailCard label="Ubicación" value={product.shelfLocation || '—'} />
-                <DetailCard label="Precio" value={formatCLP(product.price)} />
                 <DetailCard label="Stock" value={`${product.currentStock} / ${product.minStock}`} />
                 <DetailCard label="Vencimiento" value={formatChileanDate(product.expirationDate)} />
                 <DetailCard label="Caducidad" value={getExpiryLabel(getDaysToExpiry(product.expirationDate))} />
@@ -88,6 +90,29 @@ export default function ProductDetail() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function PriceBreakdownCard({ price }) {
+  const { net, tax, gross } = getPriceBreakdown(price);
+  return (
+    <div className="sm:col-span-2 rounded-2xl border border-emerald-200/80 bg-emerald-50/60 px-4 py-3">
+      <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-700">Precio (IVA incluido)</p>
+      <div className="mt-2 flex flex-wrap items-end gap-x-8 gap-y-2">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Precio neto</p>
+          <p className="text-sm font-medium text-slate-700">{formatCLP(net)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">{IVA_LABEL}</p>
+          <p className="text-sm font-medium text-slate-700">{formatCLP(tax)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-600">Precio final</p>
+          <p className="text-xl font-bold text-emerald-700">{formatCLP(gross)}</p>
+        </div>
       </div>
     </div>
   );

@@ -11,6 +11,8 @@ import Modal from '../components/ui/Modal';
 import KpiCard from '../components/ui/KpiCard';
 import DonutChart from '../components/ui/DonutChart';
 import { formatCLP } from '../utils/formatUtils';
+import { getGrossPrice, getTotalsBreakdown } from '../utils/taxUtils';
+import { IVA_LABEL } from '../constants/tax';
 import { formatChileanDate, getDaysToExpiry } from '../utils/dateUtils';
 import { PRODUCT_STATUS } from '../constants/productStatus';
 import { ROLE_LABELS } from '../constants/roles';
@@ -70,6 +72,7 @@ export default function Dashboard() {
     (sum, p) => sum + (Number(p.currentStock) || 0) * (Number(p.price) || 0),
     0
   );
+  const inventory = getTotalsBreakdown(inventoryValue);
   const lowStockCount = products.filter(
     (p) => p.currentStock > 0 && p.currentStock <= p.minStock
   ).length;
@@ -160,6 +163,13 @@ export default function Dashboard() {
               <span className="live-dot" /> En vivo
             </span>
             <Link
+              to="/sales"
+              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:-translate-y-0.5 hover:bg-emerald-700"
+            >
+              <span>🧾</span>
+              Caja
+            </Link>
+            <Link
               to="/products"
               className="hidden sm:inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
             >
@@ -214,11 +224,21 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm lg:w-72">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700">Valoración de inventario</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700">Valoración de inventario (neto)</p>
                 <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-                  {loading ? '—' : formatCLP(inventoryValue)}
+                  {loading ? '—' : formatCLP(inventory.net)}
                 </p>
-                <p className="mt-1 text-xs text-slate-500">{kpis.total} productos · {vigentes} vigentes</p>
+                <dl className="mt-3 space-y-1 text-xs text-slate-600">
+                  <div className="flex justify-between">
+                    <dt>{IVA_LABEL}</dt>
+                    <dd className="font-medium">{loading ? '—' : formatCLP(inventory.tax)}</dd>
+                  </div>
+                  <div className="flex justify-between border-t border-emerald-100 pt-1 text-slate-900">
+                    <dt className="font-semibold">Total c/IVA</dt>
+                    <dd className="font-bold">{loading ? '—' : formatCLP(inventory.gross)}</dd>
+                  </div>
+                </dl>
+                <p className="mt-2 text-xs text-slate-500">{kpis.total} productos · {vigentes} vigentes</p>
               </div>
             </div>
           </div>
@@ -227,7 +247,7 @@ export default function Dashboard() {
         {/* KPI cards */}
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <KpiCard icon="📦" label="Total productos" value={kpis.total} sub={`${vigentes} vigentes`} accent="from-blue-500 to-cyan-500" tone="text-blue-600" loading={loading} delay={0} />
-          <KpiCard icon="💰" label="Valor inventario" value={loading ? '—' : formatCLP(inventoryValue)} sub="stock × precio" accent="from-emerald-500 to-teal-500" tone="text-emerald-600" loading={loading} delay={60} />
+          <KpiCard icon="💰" label="Valor inventario" value={loading ? '—' : formatCLP(inventory.net)} sub={`neto · IVA ${loading ? '' : formatCLP(inventory.tax)}`} accent="from-emerald-500 to-teal-500" tone="text-emerald-600" loading={loading} delay={60} />
           <KpiCard icon="⏳" label="Por vencer" value={kpis.porVencer} sub="≤ 30 días" accent="from-amber-500 to-orange-500" tone="text-amber-600" loading={loading} delay={120} />
           <KpiCard icon="📉" label="Stock bajo" value={lowStockCount} sub="≤ mínimo" accent="from-yellow-500 to-amber-500" tone="text-yellow-600" loading={loading} delay={180} />
           <KpiCard icon="🚫" label="Vencidos" value={kpis.vencidos} sub="retirar" accent="from-rose-500 to-red-600" tone="text-rose-600" loading={loading} delay={240} />
@@ -296,7 +316,7 @@ export default function Dashboard() {
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Producto</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Código</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Stock</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">Precio</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-600">Precio (neto)</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Vencimiento</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Estado</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Acciones</th>
@@ -335,7 +355,10 @@ export default function Dashboard() {
                             {product.currentStock} / {product.minStock} mín.
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-semibold text-slate-900">{formatCLP(product.price)}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-slate-900">{formatCLP(product.price)}</div>
+                          <div className="text-xs text-slate-400">c/IVA {formatCLP(getGrossPrice(product.price))}</div>
+                        </td>
                         <td className="px-4 py-3 text-slate-600">
                           <div className="font-medium text-slate-800">{formatChileanDate(product.expirationDate)}</div>
                           <div className="text-xs text-slate-400">{getDaysToExpiry(product.expirationDate)}d</div>
@@ -390,7 +413,7 @@ export default function Dashboard() {
       >
         <div className="flex flex-col gap-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Nuevo precio (CLP)</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Nuevo precio neto (CLP)</label>
             <input
               type="number"
               min="0"
@@ -398,6 +421,9 @@ export default function Dashboard() {
               onChange={(e) => setNewPrice(e.target.value)}
               className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
             />
+            {!Number.isNaN(parseFloat(newPrice)) && parseFloat(newPrice) >= 0 && (
+              <p className="mt-1.5 text-xs text-emerald-700">Precio final con IVA: {formatCLP(getGrossPrice(parseFloat(newPrice)))}</p>
+            )}
           </div>
           <div className="flex justify-end gap-2">
             <button onClick={() => setEditPriceProduct(null)} className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50">Cancelar</button>

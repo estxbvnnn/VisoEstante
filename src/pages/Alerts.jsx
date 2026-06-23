@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { ROLES } from '../constants/roles';
 import { formatChileanDate } from '../utils/dateUtils';
 import { formatCLP } from '../utils/formatUtils';
+import { getGrossPrice } from '../utils/taxUtils';
 import { exportAlertsToExcel } from '../utils/exportUtils';
 import toast from 'react-hot-toast';
 
@@ -238,8 +239,12 @@ function AlertCard({ alert, onResolve, resolving }) {
                   }
                 />
                 <DetailPill
-                  label="Precio"
+                  label="Precio neto"
                   value={typeof snapshot.price === 'number' ? formatCLP(snapshot.price) : '—'}
+                />
+                <DetailPill
+                  label="Precio c/IVA"
+                  value={typeof snapshot.price === 'number' ? formatCLP(getGrossPrice(snapshot.price)) : '—'}
                 />
               </div>
             </div>

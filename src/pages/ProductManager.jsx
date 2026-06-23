@@ -15,6 +15,7 @@ import {
 import StatusBadge from '../components/ui/StatusBadge';
 import Modal from '../components/ui/Modal';
 import { formatCLP } from '../utils/formatUtils';
+import { getGrossPrice } from '../utils/taxUtils';
 import { formatChileanDate } from '../utils/dateUtils';
 import toast from 'react-hot-toast';
 
@@ -129,7 +130,7 @@ export default function ProductManager() {
                 <tr>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Nombre</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Código</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">Precio</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-600">Precio (neto)</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Stock</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Vencimiento</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Estado</th>
@@ -145,7 +146,10 @@ export default function ProductManager() {
                       <tr key={p.id} className="transition hover:bg-slate-50/80">
                         <td className="px-4 py-3 font-medium text-slate-900">{p.name}</td>
                         <td className="px-4 py-3 font-mono text-xs text-slate-500">{p.barcode}</td>
-                        <td className="px-4 py-3">{formatCLP(p.price)}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-slate-900">{formatCLP(p.price)}</div>
+                          <div className="text-xs text-slate-400">c/IVA {formatCLP(getGrossPrice(p.price))}</div>
+                        </td>
                         <td className="px-4 py-3">{p.currentStock} / {p.minStock}</td>
                         <td className="px-4 py-3 text-slate-600">{formatChileanDate(p.expirationDate)}</td>
                         <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
@@ -166,7 +170,7 @@ export default function ProductManager() {
             { label: 'Código de barras *', key: 'barcode', type: 'text', full: true },
             { label: 'Nombre *', key: 'name', type: 'text', full: true },
             { label: 'Marca', key: 'brand', type: 'text' },
-            { label: 'Precio (CLP) *', key: 'price', type: 'number' },
+            { label: 'Precio neto (CLP) *', key: 'price', type: 'number' },
             { label: 'Stock mínimo *', key: 'minStock', type: 'number' },
             { label: 'Stock actual *', key: 'currentStock', type: 'number' },
             { label: 'Ubicación', key: 'shelfLocation', type: 'text', full: true },
@@ -180,6 +184,9 @@ export default function ProductManager() {
                 onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
               />
+              {key === 'price' && parseNonNegativeNumber(form.price) !== null && (
+                <p className="mt-1 text-xs text-emerald-700">Precio final con IVA: {formatCLP(getGrossPrice(parseNonNegativeNumber(form.price)))}</p>
+              )}
             </div>
           ))}
           <div className="col-span-2">

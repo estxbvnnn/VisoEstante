@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { formatChileanDate, toDate, getDaysToExpiry } from './dateUtils';
+import { getTaxAmount, getGrossPrice } from './taxUtils';
 import { STATUS_LABELS } from '../constants/productStatus';
 import { ALERT_LABELS, ALERT_SEVERITY } from '../constants/alertTypes';
 import { ROLE_LABELS } from '../constants/roles';
@@ -57,6 +58,13 @@ function inventoryValue(stock, price) {
   const s = num(stock) ?? 0;
   const p = num(price) ?? 0;
   return s * p;
+}
+
+// Valoración del inventario (neto) con su desglose de IVA chileno.
+function inventoryTotals(products) {
+  const net = products.reduce((sum, p) => sum + inventoryValue(p.currentStock, p.price), 0);
+  const tax = getTaxAmount(net);
+  return { net, tax, gross: net + tax };
 }
 
 function statusFill(label) {
@@ -309,14 +317,21 @@ const PRODUCT_COLUMNS = [
   { header: 'Ubicación', width: 14, type: 'text', align: 'center' },
   { header: 'Stock', width: 10, type: 'int' },
   { header: 'Stock mín.', width: 11, type: 'int' },
-  { header: 'Precio unit.', width: 14, type: 'currency' },
-  { header: 'Valor inventario', width: 16, type: 'currency' },
+  { header: 'Precio neto', width: 13, type: 'currency' },
+  { header: 'IVA unit. (19%)', width: 13, type: 'currency' },
+  { header: 'Precio c/IVA', width: 13, type: 'currency' },
+  { header: 'Valor neto', width: 15, type: 'currency' },
+  { header: 'IVA inventario', width: 15, type: 'currency' },
+  { header: 'Valor c/IVA', width: 15, type: 'currency' },
   { header: 'Estado', width: 14, type: 'text', align: 'center', statusColor: true },
   { header: 'Vencimiento', width: 14, type: 'date', align: 'center' },
   { header: 'Días p/ vencer', width: 13, type: 'int' },
 ];
 
 function productRow(product) {
+  const net = num(product.price) ?? 0;
+  const valNet = inventoryValue(product.currentStock, product.price);
+  const valTax = getTaxAmount(valNet);
   return [
     product.name || '',
     product.brand || '',
@@ -326,7 +341,11 @@ function productRow(product) {
     num(product.currentStock),
     num(product.minStock),
     num(product.price),
-    inventoryValue(product.currentStock, product.price),
+    getTaxAmount(net),
+    getGrossPrice(net),
+    valNet,
+    valTax,
+    valNet + valTax,
     statusLabel(product.status),
     toDate(product.expirationDate),
     getDaysToExpiry(product.expirationDate),
@@ -344,7 +363,8 @@ const ALERT_COLUMNS = [
   { header: 'Ubicación', width: 14, type: 'text', align: 'center' },
   { header: 'Stock', width: 10, type: 'int' },
   { header: 'Stock mín.', width: 11, type: 'int' },
-  { header: 'Precio unit.', width: 14, type: 'currency' },
+  { header: 'Precio neto', width: 13, type: 'currency' },
+  { header: 'Precio c/IVA', width: 13, type: 'currency' },
   { header: 'Valor inventario', width: 16, type: 'currency' },
   { header: 'Vencimiento', width: 14, type: 'date', align: 'center' },
   { header: 'Estado producto', width: 16, type: 'text', align: 'center', statusColor: true },
@@ -365,6 +385,7 @@ function alertRow(alert) {
     num(snapshot.currentStock),
     num(snapshot.minStock),
     num(snapshot.price),
+    num(snapshot.price) != null ? getGrossPrice(snapshot.price) : null,
     inventoryValue(snapshot.currentStock, snapshot.price),
     snapshot.expirationDate ? toDate(snapshot.expirationDate) : null,
     statusLabel(snapshot.status),
@@ -388,7 +409,9 @@ function productKpis(products) {
   return [
     { label: 'Total de productos', value: products.length, type: 'int' },
     { label: 'Unidades en stock', value: products.reduce((s, p) => s + (num(p.currentStock) ?? 0), 0), type: 'int' },
-    { label: 'Valoración de inventario', value: totalValue, type: 'currency' },
+    { label: 'Valoración de inventario (neto)', value: totalValue, type: 'currency' },
+    { label: 'IVA del inventario (19%)', value: getTaxAmount(totalValue), type: 'currency' },
+    { label: 'Valoración con IVA', value: totalValue + getTaxAmount(totalValue), type: 'currency' },
     { label: 'Sin stock (crítico)', value: products.filter((p) => p.currentStock === 0).length, type: 'int' },
     { label: `Stock bajo (< ${LOW_STOCK_THRESHOLD})`, value: products.filter((p) => p.currentStock > 0 && p.currentStock < LOW_STOCK_THRESHOLD).length, type: 'int' },
     { label: 'Vigentes', value: products.filter((p) => p.status === 'vigente').length, type: 'int' },
@@ -461,11 +484,12 @@ export async function exportProductsToExcel(products, fileName = 'reporte-produc
   addCategorySheet(workbook, products);
 
   const detailRows = products.map(productRow);
+  const inv = inventoryTotals(products);
   const totals = [
     'TOTALES', '', '', '', '',
     products.reduce((s, p) => s + (num(p.currentStock) ?? 0), 0),
-    '', '',
-    products.reduce((s, p) => s + inventoryValue(p.currentStock, p.price), 0),
+    '', '', '', '',
+    inv.net, inv.tax, inv.gross,
     '', '', '',
   ];
 
@@ -506,11 +530,12 @@ export async function exportGeneralDashboardToExcel(products, alerts, fileName =
 
   addCategorySheet(workbook, products);
 
+  const inv = inventoryTotals(products);
   const productTotals = [
     'TOTALES', '', '', '', '',
     products.reduce((s, p) => s + (num(p.currentStock) ?? 0), 0),
-    '', '',
-    products.reduce((s, p) => s + inventoryValue(p.currentStock, p.price), 0),
+    '', '', '', '',
+    inv.net, inv.tax, inv.gross,
     '', '', '',
   ];
   addDetailSheet(workbook, {

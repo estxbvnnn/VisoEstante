@@ -8,6 +8,7 @@ import { addAuditLog } from '../services/auditService';
 import { useAuth } from '../context/AuthContext';
 import { calculateProductStatus } from '../utils/statusUtils';
 import { formatCLP } from '../utils/formatUtils';
+import { getGrossPrice } from '../utils/taxUtils';
 import { formatChileanDate } from '../utils/dateUtils';
 import { PRODUCT_CATEGORIES, PRODUCT_CATEGORY_DESCRIPTIONS } from '../constants/productCategories';
 import {
@@ -172,7 +173,10 @@ export default function ScannerPage() {
               <p className="font-semibold text-slate-900">{foundProduct.name}</p>
               <p className="text-sm text-slate-500">{foundProduct.brand} · {foundProduct.category}</p>
               <p className="text-sm text-slate-500">📍 {foundProduct.shelfLocation}</p>
-              <p className="mt-1 text-lg font-semibold text-emerald-700">{formatCLP(foundProduct.price)}</p>
+              <p className="mt-1 text-lg font-semibold text-emerald-700">
+                {formatCLP(getGrossPrice(foundProduct.price))} <span className="text-xs font-normal text-slate-400">c/IVA</span>
+              </p>
+              <p className="text-xs text-slate-400">Neto {formatCLP(foundProduct.price)}</p>
               <p className="text-sm text-slate-500">Vence: {formatChileanDate(foundProduct.expirationDate)}</p>
             </div>
             <div>
@@ -225,8 +229,11 @@ export default function ScannerPage() {
                 )}
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-700">Precio (CLP) *</label>
+                <label className="mb-1 block text-xs font-medium text-slate-700">Precio neto (CLP) *</label>
                 <input type="number" min="0" step="1" value={newProductData.price} onChange={(e) => setNewProductData((d) => ({ ...d, price: e.target.value }))} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100" />
+                {parseNonNegativeNumber(newProductData.price) !== null && (
+                  <p className="mt-1 text-xs text-emerald-700">Con IVA: {formatCLP(getGrossPrice(parseNonNegativeNumber(newProductData.price)))}</p>
+                )}
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-700">Stock mínimo *</label>

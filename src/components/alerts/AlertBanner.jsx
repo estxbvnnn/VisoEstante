@@ -2,6 +2,7 @@ import { useAlerts } from '../../hooks/useAlerts';
 import { Link } from 'react-router-dom';
 import { formatChileanDate } from '../../utils/dateUtils';
 import { formatCLP } from '../../utils/formatUtils';
+import { getGrossPrice } from '../../utils/taxUtils';
 
 export default function AlertBanner() {
   const { alerts, criticalCount } = useAlerts();
@@ -34,7 +35,7 @@ export default function AlertBanner() {
                 <span>Vence {formatChileanDate(alerts[0].productSnapshot.expirationDate)}</span>
               )}
               {typeof alerts[0]?.productSnapshot?.price === 'number' && (
-                <span>{formatCLP(alerts[0].productSnapshot.price)}</span>
+                <span>{formatCLP(getGrossPrice(alerts[0].productSnapshot.price))} c/IVA</span>
               )}
             </div>
           </div>

@@ -1,7 +1,8 @@
 import { useProducts } from '../hooks/useProducts';
 import { PRODUCT_STATUS } from '../constants/productStatus';
-import { formatChileanDate, getDaysToExpiry } from '../utils/dateUtils';
+import { formatChileanDate } from '../utils/dateUtils';
 import { formatCLP } from '../utils/formatUtils';
+import { getGrossPrice } from '../utils/taxUtils';
 import StatusBadge from '../components/ui/StatusBadge';
 import SkeletonCard from '../components/ui/SkeletonCard';
 
@@ -73,8 +74,9 @@ function ProductCard({ product }) {
         <p className="font-semibold text-sm leading-tight mt-0.5 line-clamp-2">{product.name}</p>
 
         <p className="text-2xl font-bold text-green-400 mt-2">
-          {formatCLP(product.price)}
+          {formatCLP(getGrossPrice(product.price))}
         </p>
+        <p className="text-[11px] text-slate-400">IVA incluido</p>
 
         <div className="mt-2 flex items-center justify-between">
           <StatusBadge status={product.status} />

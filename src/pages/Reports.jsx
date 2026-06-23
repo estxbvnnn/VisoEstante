@@ -1,9 +1,12 @@
 import { useProducts } from '../hooks/useProducts';
+import { useSales } from '../hooks/useSales';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { PRODUCT_STATUS } from '../constants/productStatus';
 import { formatChileanDate, getDaysToExpiry } from '../utils/dateUtils';
 import { formatCLP } from '../utils/formatUtils';
+import { getGrossPrice, getTotalsBreakdown } from '../utils/taxUtils';
+import { IVA_LABEL } from '../constants/tax';
 import StatusBadge from '../components/ui/StatusBadge';
 import SkeletonCard from '../components/ui/SkeletonCard';
 import KpiCard from '../components/ui/KpiCard';
@@ -15,7 +18,16 @@ const LOW_STOCK_THRESHOLD = 20;
 
 export default function Reports() {
   const { products, loading } = useProducts();
+  const { sales, loading: salesLoading } = useSales(500);
   const { userData } = useAuth();
+
+  const salesSummary = {
+    count: sales.length,
+    net: sales.reduce((s, v) => s + (Number(v.totalNet) || 0), 0),
+    tax: sales.reduce((s, v) => s + (Number(v.totalTax) || 0), 0),
+    gross: sales.reduce((s, v) => s + (Number(v.totalGross) || 0), 0),
+    units: sales.reduce((s, v) => s + (Number(v.itemCount) || 0), 0),
+  };
 
   const expiredProducts = products.filter((p) => p.status === PRODUCT_STATUS.VENCIDO);
   const expiringProducts = products.filter((p) => p.status === PRODUCT_STATUS.POR_VENCER);
@@ -28,6 +40,7 @@ export default function Reports() {
     (sum, p) => sum + (Number(p.currentStock) || 0) * (Number(p.price) || 0),
     0
   );
+  const inventory = getTotalsBreakdown(inventoryValue);
   const riskValue = [...expiredProducts, ...expiringProducts].reduce(
     (sum, p) => sum + (Number(p.currentStock) || 0) * (Number(p.price) || 0),
     0
@@ -66,12 +79,20 @@ export default function Reports() {
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Reportes</h1>
                 <p className="mt-2 text-sm text-slate-600">Vista consolidada de vencimientos, stock y riesgos operativos.</p>
               </div>
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
-              >
-                ← Dashboard
-              </Link>
+              <div className="flex gap-2">
+                <Link
+                  to="/sales"
+                  className="inline-flex items-center justify-center gap-1 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:-translate-y-0.5 hover:bg-emerald-700"
+                >
+                  🧾 Caja
+                </Link>
+                <Link
+                  to="/dashboard"
+                  className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                >
+                  ← Dashboard
+                </Link>
+              </div>
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <button
@@ -91,11 +112,39 @@ export default function Reports() {
         {/* KPI cards */}
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <KpiCard icon="📦" label="Total productos" value={products.length} sub={`${vigentes} vigentes`} accent="from-blue-500 to-cyan-500" tone="text-blue-600" loading={loading} delay={0} />
-          <KpiCard icon="💰" label="Valor inventario" value={loading ? '—' : formatCLP(inventoryValue)} sub="stock × precio" accent="from-emerald-500 to-teal-500" tone="text-emerald-600" loading={loading} delay={60} />
+          <KpiCard icon="💰" label="Valor inventario" value={loading ? '—' : formatCLP(inventory.net)} sub={`neto · IVA ${loading ? '' : formatCLP(inventory.tax)}`} accent="from-emerald-500 to-teal-500" tone="text-emerald-600" loading={loading} delay={60} />
           <KpiCard icon="⚠️" label="Valor en riesgo" value={loading ? '—' : formatCLP(riskValue)} sub="vencido + por vencer" accent="from-amber-500 to-orange-500" tone="text-amber-600" loading={loading} delay={120} />
           <KpiCard icon="⏳" label="Por vencer" value={expiringProducts.length} sub="≤ 30 días" accent="from-yellow-500 to-amber-500" tone="text-yellow-600" loading={loading} delay={180} />
           <KpiCard icon="🚫" label="Vencidos" value={expiredProducts.length} sub="retirar" accent="from-rose-500 to-red-600" tone="text-rose-600" loading={loading} delay={240} />
           <KpiCard icon="📉" label="Stock bajo" value={lowStockProducts.length} sub="≤ mínimo" accent="from-slate-500 to-slate-700" tone="text-slate-600" loading={loading} delay={300} />
+        </section>
+
+        {/* Desglose de IVA del inventario */}
+        <section className="animate-fade-in-up rounded-3xl border border-white/70 bg-white/80 p-5 shadow-xl shadow-slate-900/5 backdrop-blur-sm">
+          <h2 className="font-semibold text-slate-700">Desglose de IVA del inventario</h2>
+          <p className="mt-1 text-sm text-slate-500">Valoración del inventario (stock × precio) con impuesto chileno (IVA 19%).</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <TaxBox label="Neto (sin IVA)" value={loading ? '—' : formatCLP(inventory.net)} tone="text-slate-900" />
+            <TaxBox label={IVA_LABEL} value={loading ? '—' : formatCLP(inventory.tax)} tone="text-blue-700" />
+            <TaxBox label="Total con IVA" value={loading ? '—' : formatCLP(inventory.gross)} tone="text-emerald-700" highlight />
+          </div>
+        </section>
+
+        {/* Resumen de ventas */}
+        <section className="animate-fade-in-up rounded-3xl border border-white/70 bg-white/80 p-5 shadow-xl shadow-slate-900/5 backdrop-blur-sm">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-slate-700">Ventas registradas</h2>
+              <p className="mt-1 text-sm text-slate-500">Resumen del historial reciente con IVA recaudado.</p>
+            </div>
+            <Link to="/sales" className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:border-emerald-200">Ir a Caja →</Link>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiCard icon="🧾" label="N° de ventas" value={salesSummary.count} sub={`${salesSummary.units} unidades`} accent="from-blue-500 to-cyan-500" tone="text-blue-600" loading={salesLoading} delay={0} />
+            <KpiCard icon="💵" label="Total neto" value={loading ? '—' : formatCLP(salesSummary.net)} sub="sin IVA" accent="from-slate-500 to-slate-700" tone="text-slate-600" loading={salesLoading} delay={60} />
+            <KpiCard icon="🧮" label="IVA recaudado" value={loading ? '—' : formatCLP(salesSummary.tax)} sub="19%" accent="from-amber-500 to-orange-500" tone="text-amber-600" loading={salesLoading} delay={120} />
+            <KpiCard icon="💰" label="Total vendido" value={loading ? '—' : formatCLP(salesSummary.gross)} sub="con IVA" accent="from-emerald-500 to-teal-500" tone="text-emerald-600" loading={salesLoading} delay={180} />
+          </div>
         </section>
 
         {/* Charts */}
@@ -124,6 +173,15 @@ export default function Reports() {
   );
 }
 
+function TaxBox({ label, value, tone, highlight }) {
+  return (
+    <div className={`rounded-2xl border px-4 py-3 ${highlight ? 'border-emerald-200 bg-emerald-50/70' : 'border-slate-200 bg-slate-50/70'}`}>
+      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">{label}</p>
+      <p className={`mt-1 text-2xl font-bold tracking-tight ${tone}`}>{value}</p>
+    </div>
+  );
+}
+
 function Section({ title, count, color, loading, children }) {
   const colors = { red: 'text-rose-700', yellow: 'text-amber-700', gray: 'text-slate-700' };
   return (
@@ -148,7 +206,7 @@ function ProductTable({ products, showDays, showStock }) {
           <tr>
             <th className="px-4 py-3 text-left font-medium text-slate-600">Producto</th>
             <th className="px-4 py-3 text-left font-medium text-slate-600">Categoría</th>
-            <th className="px-4 py-3 text-left font-medium text-slate-600">Precio</th>
+            <th className="px-4 py-3 text-left font-medium text-slate-600">Precio (neto)</th>
             {showDays && <th className="px-4 py-3 text-left font-medium text-slate-600">Vence en</th>}
             {showStock && <th className="px-4 py-3 text-left font-medium text-slate-600">Stock</th>}
             <th className="px-4 py-3 text-left font-medium text-slate-600">Vencimiento</th>
@@ -160,7 +218,10 @@ function ProductTable({ products, showDays, showStock }) {
             <tr key={p.id} className="transition hover:bg-slate-50/80">
               <td className="px-4 py-3 font-medium text-slate-900">{p.name}</td>
               <td className="px-4 py-3 text-slate-500">{p.category}</td>
-              <td className="px-4 py-3">{formatCLP(p.price)}</td>
+              <td className="px-4 py-3">
+                <div>{formatCLP(p.price)}</div>
+                <div className="text-xs text-slate-400">c/IVA {formatCLP(getGrossPrice(p.price))}</div>
+              </td>
               {showDays && <td className="px-4 py-3 font-semibold text-amber-700">{getDaysToExpiry(p.expirationDate)}d</td>}
               {showStock && <td className="px-4 py-3 font-semibold text-rose-600">{p.currentStock} / {p.minStock}</td>}
               <td className="px-4 py-3 text-slate-600">{formatChileanDate(p.expirationDate)}</td>

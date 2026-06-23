@@ -52,5 +52,13 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update, delete: if false;
     }
+
+    // Ventas (boletas). El personal puede registrar y consultar ventas; una vez
+    // creadas son inmutables (no se editan ni eliminan).
+    match /sales/{saleId} {
+      allow read: if isStaff();
+      allow create: if isStaff();
+      allow update, delete: if false;
+    }
   }
 }
