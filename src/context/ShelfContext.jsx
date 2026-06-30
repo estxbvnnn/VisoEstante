@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useReducer } from 'react';
 import { subscribeToAllProducts, batchUpdateStatuses } from '../services/productService';
 import { checkAndGenerateAlerts } from '../services/alertService';
 import { calculateProductStatus } from '../utils/statusUtils';
+import { firebaseInitError } from '../services/firebase';
 
 const ShelfContext = createContext(null);
 
@@ -26,6 +27,14 @@ export function ShelfProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
+    // Si Firebase no se inicializó (p. ej. faltan variables de entorno en el
+    // build de producción), no intentar suscribirse: evita un crash sin
+    // mensaje y deja que AuthContext muestre la pantalla de error.
+    if (firebaseInitError) {
+      dispatch({ type: 'SET_ERROR', payload: firebaseInitError });
+      return undefined;
+    }
+
     const unsub = subscribeToAllProducts((products) => {
       // Mostrar los productos de inmediato; el mantenimiento no debe bloquear la UI.
       dispatch({ type: 'SET_PRODUCTS', payload: products });
