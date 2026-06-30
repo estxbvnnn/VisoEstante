@@ -26,33 +26,31 @@ export function ShelfProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {
-    const unsub = subscribeToAllProducts(async (products) => {
-      // Evaluate and batch-update statuses
-      const updates = products
-        .map((p) => ({
-          id: p.id,
-          status: calculateProductStatus(p.expirationDate, p.currentStock, p.minStock),
-        }))
-        .filter((u) => {
-          const product = products.find((p) => p.id === u.id);
-          return product && product.status !== u.status;
-        });
-
-      if (updates.length > 0) {
-        try {
-          await batchUpdateStatuses(updates);
-        } catch (err) {
-          console.error('Error updating statuses:', err);
-        }
-      }
-
-      try {
-        await checkAndGenerateAlerts(products);
-      } catch (err) {
-        console.error('Error generating alerts:', err);
-      }
-
+    const unsub = subscribeToAllProducts((products) => {
+      // Mostrar los productos de inmediato; el mantenimiento no debe bloquear la UI.
       dispatch({ type: 'SET_PRODUCTS', payload: products });
+
+      // Mantenimiento en segundo plano: recalcular estados y generar alertas.
+      (async () => {
+        try {
+          const updates = products
+            .map((p) => ({
+              id: p.id,
+              status: calculateProductStatus(p.expirationDate, p.currentStock, p.minStock),
+            }))
+            .filter((u) => {
+              const product = products.find((p) => p.id === u.id);
+              return product && product.status !== u.status;
+            });
+
+          if (updates.length > 0) {
+            await batchUpdateStatuses(updates);
+          }
+          await checkAndGenerateAlerts(products);
+        } catch (err) {
+          console.error('Error en mantenimiento de inventario:', err);
+        }
+      })();
     });
 
     return unsub;

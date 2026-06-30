@@ -3,11 +3,25 @@
  * Muestra un ícono, etiqueta, valor grande y un subtítulo de contexto, con
  * animación de entrada escalonada.
  */
-export default function KpiCard({ icon, label, value, sub, accent, tone, loading, delay = 0 }) {
+export default function KpiCard({ icon, label, value, sub, accent, tone, loading, delay = 0, onClick }) {
+  const clickable = typeof onClick === 'function';
   return (
     <div
-      className="group animate-fade-in-up overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+      className={`group animate-fade-in-up overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-xl ${clickable ? 'cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-4 focus:ring-slate-200/70' : ''}`}
       style={{ animationDelay: `${delay}ms` }}
+      onClick={onClick}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
     >
       <div className="flex items-center justify-between">
         <span className={`flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-lg ring-1 ring-slate-200/70 ${tone || ''}`}>{icon}</span>

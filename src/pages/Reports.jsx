@@ -79,12 +79,12 @@ export default function Reports() {
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Reportes</h1>
                 <p className="mt-2 text-sm text-slate-600">Vista consolidada de vencimientos, stock y riesgos operativos.</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Link
-                  to="/sales"
-                  className="inline-flex items-center justify-center gap-1 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:-translate-y-0.5 hover:bg-emerald-700"
+                  to="/expired"
+                  className="inline-flex items-center justify-center gap-1 rounded-2xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-rose-200 transition hover:-translate-y-0.5 hover:bg-rose-700"
                 >
-                  🧾 Caja
+                  🚫 Vencidos
                 </Link>
                 <Link
                   to="/dashboard"
@@ -132,12 +132,9 @@ export default function Reports() {
 
         {/* Resumen de ventas */}
         <section className="animate-fade-in-up rounded-3xl border border-white/70 bg-white/80 p-5 shadow-xl shadow-slate-900/5 backdrop-blur-sm">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="font-semibold text-slate-700">Ventas registradas</h2>
-              <p className="mt-1 text-sm text-slate-500">Resumen del historial reciente con IVA recaudado.</p>
-            </div>
-            <Link to="/sales" className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:border-emerald-200">Ir a Caja →</Link>
+          <div className="mb-4">
+            <h2 className="font-semibold text-slate-700">Ventas registradas</h2>
+            <p className="mt-1 text-sm text-slate-500">Resumen del historial reciente con IVA recaudado.</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard icon="🧾" label="N° de ventas" value={salesSummary.count} sub={`${salesSummary.units} unidades`} accent="from-blue-500 to-cyan-500" tone="text-blue-600" loading={salesLoading} delay={0} />

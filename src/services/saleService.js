@@ -108,7 +108,7 @@ export async function createSale({ items, paymentMethod = 'efectivo' }, user) {
       createdAt: serverTimestamp(),
     });
 
-    return { totalNet, totalTax, totalGross, itemCount: lines.length };
+    return { totalNet, totalTax, totalGross, itemCount: lines.length, lines };
   });
 
   await addAuditLog({
@@ -123,7 +123,25 @@ export async function createSale({ items, paymentMethod = 'efectivo' }, user) {
     },
   });
 
-  return { id: saleRef.id, ...result };
+  // Registro por producto, para que la venta aparezca en el historial de cada uno.
+  await Promise.all(
+    result.lines.map((l) =>
+      addAuditLog({
+        action: 'product_sold',
+        productId: l.productId,
+        userId: user?.uid,
+        details: { saleId: saleRef.id, quantity: l.quantity, unitNet: l.unitNet, lineNet: l.lineNet },
+      })
+    )
+  );
+
+  return {
+    id: saleRef.id,
+    totalNet: result.totalNet,
+    totalTax: result.totalTax,
+    totalGross: result.totalGross,
+    itemCount: result.itemCount,
+  };
 }
 
 /**

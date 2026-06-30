@@ -35,6 +35,12 @@ export default function Dashboard() {
   const [newPrice, setNewPrice] = useState('');
   const [newStock, setNewStock] = useState('');
   const [saving, setSaving] = useState(false);
+  const [detailView, setDetailView] = useState(null);
+
+  // Abre un modal con el detalle de un grupo de productos, agrupado por categoría.
+  function openDetail(title, items) {
+    setDetailView({ title, items });
+  }
 
   async function handleSignOut() {
     await signOut();
@@ -56,7 +62,11 @@ export default function Dashboard() {
       !search ||
       p.name?.toLowerCase().includes(search.toLowerCase()) ||
       p.barcode?.includes(search);
-    const matchStatus = filterStatus === 'all' || p.status === filterStatus;
+    const matchStatus =
+      filterStatus === 'all' ||
+      (filterStatus === 'low_stock'
+        ? p.currentStock > 0 && p.currentStock <= p.minStock
+        : p.status === filterStatus);
     const matchCategory = filterCategory === 'all' || p.category === filterCategory;
     return matchSearch && matchStatus && matchCategory;
   });
@@ -163,11 +173,11 @@ export default function Dashboard() {
               <span className="live-dot" /> En vivo
             </span>
             <Link
-              to="/sales"
-              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:-translate-y-0.5 hover:bg-emerald-700"
+              to="/history"
+              className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-200 transition hover:-translate-y-0.5 hover:bg-indigo-700"
             >
-              <span>🧾</span>
-              Caja
+              <span>📈</span>
+              Histórico
             </Link>
             <Link
               to="/products"
@@ -221,6 +231,12 @@ export default function Dashboard() {
                   >
                     <span>📈</span> Ver reportes avanzados
                   </Link>
+                  <Link
+                    to="/expired"
+                    className="inline-flex items-center gap-2 justify-center rounded-2xl border border-rose-200 bg-white px-4 py-3 text-sm font-semibold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-300 hover:shadow-md"
+                  >
+                    <span>🚫</span> Vencidos
+                  </Link>
                 </div>
               </div>
               <div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm lg:w-72">
@@ -246,12 +262,12 @@ export default function Dashboard() {
 
         {/* KPI cards */}
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <KpiCard icon="📦" label="Total productos" value={kpis.total} sub={`${vigentes} vigentes`} accent="from-blue-500 to-cyan-500" tone="text-blue-600" loading={loading} delay={0} />
-          <KpiCard icon="💰" label="Valor inventario" value={loading ? '—' : formatCLP(inventory.net)} sub={`neto · IVA ${loading ? '' : formatCLP(inventory.tax)}`} accent="from-emerald-500 to-teal-500" tone="text-emerald-600" loading={loading} delay={60} />
-          <KpiCard icon="⏳" label="Por vencer" value={kpis.porVencer} sub="≤ 30 días" accent="from-amber-500 to-orange-500" tone="text-amber-600" loading={loading} delay={120} />
-          <KpiCard icon="📉" label="Stock bajo" value={lowStockCount} sub="≤ mínimo" accent="from-yellow-500 to-amber-500" tone="text-yellow-600" loading={loading} delay={180} />
-          <KpiCard icon="🚫" label="Vencidos" value={kpis.vencidos} sub="retirar" accent="from-rose-500 to-red-600" tone="text-rose-600" loading={loading} delay={240} />
-          <KpiCard icon="⛔" label="Sin stock" value={kpis.sinStock} sub="reponer" accent="from-slate-500 to-slate-700" tone="text-slate-600" loading={loading} delay={300} />
+          <KpiCard icon="📦" label="Total productos" value={kpis.total} sub={`${vigentes} vigentes · ver`} accent="from-blue-500 to-cyan-500" tone="text-blue-600" loading={loading} delay={0} onClick={() => openDetail('Todos los productos', products)} />
+          <KpiCard icon="💰" label="Valor inventario" value={loading ? '—' : formatCLP(inventory.net)} sub={`neto · IVA ${loading ? '' : formatCLP(inventory.tax)}`} accent="from-emerald-500 to-teal-500" tone="text-emerald-600" loading={loading} delay={60} onClick={() => openDetail('Valoración por categoría', products)} />
+          <KpiCard icon="⏳" label="Por vencer" value={kpis.porVencer} sub="≤ 30 días · ver" accent="from-amber-500 to-orange-500" tone="text-amber-600" loading={loading} delay={120} onClick={() => openDetail('Productos por vencer', products.filter((p) => p.status === PRODUCT_STATUS.POR_VENCER))} />
+          <KpiCard icon="📉" label="Stock bajo" value={lowStockCount} sub="≤ mínimo · ver" accent="from-yellow-500 to-amber-500" tone="text-yellow-600" loading={loading} delay={180} onClick={() => openDetail('Productos con stock bajo', products.filter((p) => p.currentStock > 0 && p.currentStock <= p.minStock))} />
+          <KpiCard icon="🚫" label="Vencidos" value={kpis.vencidos} sub="retirar · ver" accent="from-rose-500 to-red-600" tone="text-rose-600" loading={loading} delay={240} onClick={() => openDetail('Productos vencidos', products.filter((p) => p.status === PRODUCT_STATUS.VENCIDO))} />
+          <KpiCard icon="⛔" label="Sin stock" value={kpis.sinStock} sub="reponer · ver" accent="from-slate-500 to-slate-700" tone="text-slate-600" loading={loading} delay={300} onClick={() => openDetail('Productos sin stock', products.filter((p) => p.status === PRODUCT_STATUS.SIN_STOCK))} />
         </section>
 
         {/* Insights: donut + bar + attention */}
@@ -284,6 +300,7 @@ export default function Dashboard() {
             <option value={PRODUCT_STATUS.POR_VENCER}>Por vencer</option>
             <option value={PRODUCT_STATUS.VENCIDO}>Vencido</option>
             <option value={PRODUCT_STATUS.SIN_STOCK}>Sin stock</option>
+            <option value="low_stock">Stock bajo</option>
           </select>
           <select
             value={filterCategory}
@@ -460,7 +477,69 @@ export default function Dashboard() {
           </div>
         </div>
       </Modal>
+
+      {/* Detalle por categoría (al pulsar un KPI) */}
+      <CategoryDetailModal view={detailView} onClose={() => setDetailView(null)} />
     </div>
+  );
+}
+
+function CategoryDetailModal({ view, onClose }) {
+  if (!view) return null;
+  const { title, items } = view;
+  const groups = {};
+  items.forEach((p) => {
+    const cat = p.category || 'Sin categoría';
+    (groups[cat] = groups[cat] || []).push(p);
+  });
+  const entries = Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+  const valueOf = (p) => (Number(p.currentStock) || 0) * (Number(p.price) || 0);
+  const totalNet = items.reduce((s, p) => s + valueOf(p), 0);
+  const totals = getTotalsBreakdown(totalNet);
+
+  return (
+    <Modal
+      open={!!view}
+      onClose={onClose}
+      title={title}
+      subtitle={`${items.length} producto(s) · ${entries.length} categoría(s)`}
+    >
+      {items.length === 0 ? (
+        <p className="py-6 text-center text-sm text-slate-400">No hay productos en este grupo.</p>
+      ) : (
+        <div className="max-h-[65vh] space-y-4 overflow-y-auto pr-1">
+          {entries.map(([cat, list]) => {
+            const catNet = list.reduce((s, p) => s + valueOf(p), 0);
+            return (
+              <div key={cat}>
+                <div className="mb-1 flex items-center justify-between border-b border-slate-100 pb-1">
+                  <h4 className="text-sm font-semibold text-slate-800">{cat}</h4>
+                  <span className="text-xs text-slate-500">{list.length} · {formatCLP(catNet)} neto</span>
+                </div>
+                <ul className="space-y-1">
+                  {list.map((p) => (
+                    <li key={p.id} className="rounded-xl border border-slate-100 bg-white px-3 py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <Link to={`/products/${p.id}`} className="truncate text-sm font-medium text-slate-800 hover:text-emerald-700 hover:underline">{p.name}</Link>
+                        <StatusBadge status={p.status} />
+                      </div>
+                      <div className="mt-0.5 flex items-center justify-between gap-2 text-xs text-slate-500">
+                        <span className="truncate">{p.brand || 'Sin marca'} · Stock {p.currentStock} · Vence {formatChileanDate(p.expirationDate)}</span>
+                        <span className="shrink-0 font-medium text-slate-700">{formatCLP(getGrossPrice(p.price))} c/IVA</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+          <div className="sticky bottom-0 flex items-center justify-between rounded-xl bg-slate-900 px-3 py-2 text-sm text-white">
+            <span>Total ({items.length})</span>
+            <span className="font-semibold">{formatCLP(totals.net)} neto · {formatCLP(totals.gross)} c/IVA</span>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }
 

@@ -11,6 +11,8 @@ import ProductManager from './pages/ProductManager';
 import Reports from './pages/Reports';
 import ProductDetail from './pages/ProductDetail';
 import Sales from './pages/Sales';
+import ExpiredProducts from './pages/ExpiredProducts';
+import History from './pages/History';
 import { ROLES } from './constants/roles';
 
 export default function App() {
@@ -67,6 +69,22 @@ export default function App() {
               element={
                 <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPERVISOR, ROLES.REPOSITOR]}>
                   <Sales />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/expired"
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPERVISOR]}>
+                  <ExpiredProducts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/history"
+              element={
+                <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.SUPERVISOR]}>
+                  <History />
                 </ProtectedRoute>
               }
             />

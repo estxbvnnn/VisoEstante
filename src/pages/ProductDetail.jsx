@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useProduct } from '../hooks/useProduct';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -5,7 +6,9 @@ import SkeletonCard from '../components/ui/SkeletonCard';
 import { formatCLP } from '../utils/formatUtils';
 import { getPriceBreakdown } from '../utils/taxUtils';
 import { IVA_LABEL } from '../constants/tax';
-import { formatChileanDate, getDaysToExpiry, getExpiryLabel } from '../utils/dateUtils';
+import { formatChileanDate, getDaysToExpiry, getExpiryLabel, toDate } from '../utils/dateUtils';
+import { subscribeToProductHistory } from '../services/auditService';
+import { auditActionLabel, auditActionIcon } from '../constants/auditActions';
 import { useAuth } from '../context/AuthContext';
 import { ROLES } from '../constants/roles';
 
@@ -14,6 +17,18 @@ export default function ProductDetail() {
   const { product, loading, error } = useProduct(id);
   const { userData } = useAuth();
   const canEdit = [ROLES.ADMIN, ROLES.SUPERVISOR].includes(userData?.role);
+
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return undefined;
+    const unsub = subscribeToProductHistory(id, (logs) => {
+      setHistory(logs);
+      setHistoryLoading(false);
+    });
+    return unsub;
+  }, [id]);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(2,132,199,0.14),_transparent_28%),linear-gradient(180deg,_#f8fafc_0%,_#eefdf5_100%)] text-slate-900">
@@ -39,6 +54,7 @@ export default function ProductDetail() {
         ) : !product ? (
           <div className="rounded-3xl border border-slate-200 bg-white p-6 text-slate-600 shadow-lg shadow-slate-900/5">No se encontró el producto.</div>
         ) : (
+          <>
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl shadow-slate-900/5 backdrop-blur-sm">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -89,8 +105,81 @@ export default function ProductDetail() {
               )}
             </div>
           </div>
+          <ProductHistory history={history} loading={historyLoading} />
+          </>
         )}
       </div>
+    </div>
+  );
+}
+
+function historyDetail(entry) {
+  const d = entry.details || {};
+  switch (entry.action) {
+    case 'price_updated':
+      return d.newPrice != null ? `Nuevo precio neto: ${formatCLP(d.newPrice)}` : '';
+    case 'stock_updated':
+      return d.newStock != null ? `Nuevo stock: ${d.newStock} u.` : '';
+    case 'product_scanned':
+      return d.newProduct
+        ? 'Alta por escaneo'
+        : d.newStock != null
+        ? `Stock por escaneo: ${d.newStock} u.`
+        : '';
+    case 'product_sold':
+      return d.quantity != null
+        ? `Vendidas ${d.quantity} u.${d.unitNet != null ? ` · ${formatCLP(d.unitNet)} neto c/u` : ''}`
+        : '';
+    default:
+      return '';
+  }
+}
+
+function historyDateTime(entry) {
+  const dt = toDate(entry.timestamp);
+  if (!dt) return '—';
+  return `${formatChileanDate(dt)} · ${dt.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`;
+}
+
+function ProductHistory({ history, loading }) {
+  return (
+    <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl shadow-slate-900/5 backdrop-blur-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Historial del producto</p>
+          <h3 className="mt-1 text-base font-semibold text-slate-900">Movimientos y cambios</h3>
+        </div>
+        {!loading && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{history.length}</span>}
+      </div>
+
+      {loading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-12 animate-pulse rounded-2xl bg-slate-100" />
+          ))}
+        </div>
+      ) : history.length === 0 ? (
+        <p className="py-6 text-center text-sm text-slate-400">Aún no hay movimientos registrados para este producto.</p>
+      ) : (
+        <ol className="relative space-y-4 border-l-2 border-slate-100 pl-5">
+          {history.map((entry) => (
+            <li key={entry.id} className="relative">
+              <span className="absolute -left-[1.7rem] flex h-7 w-7 items-center justify-center rounded-full bg-white text-sm ring-2 ring-slate-100">
+                {auditActionIcon(entry.action)}
+              </span>
+              <div className="rounded-2xl border border-slate-100 bg-white px-4 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-slate-800">{auditActionLabel(entry.action)}</p>
+                  <span className="shrink-0 text-xs text-slate-400">{historyDateTime(entry)}</span>
+                </div>
+                {historyDetail(entry) && (
+                  <p className="mt-0.5 text-xs text-slate-500">{historyDetail(entry)}</p>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }

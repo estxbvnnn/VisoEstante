@@ -154,7 +154,10 @@ export default function ProductManager() {
                         <td className="px-4 py-3 text-slate-600">{formatChileanDate(p.expirationDate)}</td>
                         <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                         <td className="px-4 py-3">
-                          <button onClick={() => openEdit(p)} className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100">Editar</button>
+                          <div className="flex items-center gap-2">
+                            <Link to={`/products/${p.id}`} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-200">Ver</Link>
+                            <button onClick={() => openEdit(p)} className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100">Editar</button>
+                          </div>
                         </td>
                       </tr>
                     ))}
