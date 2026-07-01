@@ -25,14 +25,17 @@ export function getDaysToExpiry(expirationDate) {
 }
 
 /**
- * Returns a human-readable expiry label.
+ * Returns a human-readable expiry label (e.g. "Vencido hace 58 días" instead
+ * of a raw negative number). Pass `compact: true` for tight table cells,
+ * which shortens "días"/"día" to "d" (e.g. "Vencido hace 58d").
  */
-export function getExpiryLabel(days) {
-  if (days === null || days === undefined) return 'Sin fecha';
-  if (days < 0) return `Vencido hace ${Math.abs(days)} día${Math.abs(days) !== 1 ? 's' : ''}`;
+export function getExpiryLabel(days, compact = false) {
+  if (days === null || days === undefined) return compact ? '—' : 'Sin fecha';
   if (days === 0) return 'Vence hoy';
-  if (days === 1) return 'Vence mañana';
-  return `Vence en ${days} días`;
+  if (days === 1 && !compact) return 'Vence mañana';
+  const abs = Math.abs(days);
+  const amount = compact ? `${abs}d` : `${abs} día${abs !== 1 ? 's' : ''}`;
+  return days < 0 ? `Vencido hace ${amount}` : `Vence en ${amount}`;
 }
 
 /**

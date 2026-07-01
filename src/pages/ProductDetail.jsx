@@ -17,6 +17,7 @@ export default function ProductDetail() {
   const { product, loading, error } = useProduct(id);
   const { userData } = useAuth();
   const canEdit = [ROLES.ADMIN, ROLES.SUPERVISOR].includes(userData?.role);
+  const daysToExpiry = getDaysToExpiry(product?.expirationDate);
 
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -72,7 +73,7 @@ export default function ProductDetail() {
                 <DetailCard label="Ubicación" value={product.shelfLocation || '—'} />
                 <DetailCard label="Stock" value={`${product.currentStock} / ${product.minStock}`} />
                 <DetailCard label="Vencimiento" value={formatChileanDate(product.expirationDate)} />
-                <DetailCard label="Caducidad" value={getExpiryLabel(getDaysToExpiry(product.expirationDate))} />
+                <DetailCard label="Caducidad" value={getExpiryLabel(daysToExpiry)} />
               </div>
 
               <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
@@ -91,7 +92,11 @@ export default function ProductDetail() {
                 <div className="mt-4 space-y-4">
                   <MiniMetric label="Stock actual" value={product.currentStock} accent="from-emerald-500 to-cyan-500" />
                   <MiniMetric label="Mínimo" value={product.minStock} accent="from-amber-500 to-orange-500" />
-                  <MiniMetric label="Días para vencer" value={getDaysToExpiry(product.expirationDate) ?? '—'} accent="from-rose-500 to-red-600" />
+                  <MiniMetric
+                    label={daysToExpiry === null ? 'Vencimiento' : daysToExpiry < 0 ? 'Vencido hace' : daysToExpiry === 0 ? 'Vence' : 'Vence en'}
+                    value={daysToExpiry === null ? '—' : daysToExpiry === 0 ? 'Hoy' : `${Math.abs(daysToExpiry)}d`}
+                    accent="from-rose-500 to-red-600"
+                  />
                 </div>
               </div>
 

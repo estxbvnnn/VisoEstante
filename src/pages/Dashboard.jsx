@@ -13,7 +13,7 @@ import DonutChart from '../components/ui/DonutChart';
 import { formatCLP } from '../utils/formatUtils';
 import { getGrossPrice, getTotalsBreakdown } from '../utils/taxUtils';
 import { IVA_LABEL } from '../constants/tax';
-import { formatChileanDate, getDaysToExpiry } from '../utils/dateUtils';
+import { formatChileanDate, getDaysToExpiry, getExpiryLabel } from '../utils/dateUtils';
 import { PRODUCT_STATUS } from '../constants/productStatus';
 import { ROLE_LABELS } from '../constants/roles';
 import toast from 'react-hot-toast';
@@ -378,7 +378,9 @@ export default function Dashboard() {
                         </td>
                         <td className="px-4 py-3 text-slate-600">
                           <div className="font-medium text-slate-800">{formatChileanDate(product.expirationDate)}</div>
-                          <div className="text-xs text-slate-400">{getDaysToExpiry(product.expirationDate)}d</div>
+                          <div className={`text-xs ${getDaysToExpiry(product.expirationDate) < 0 ? 'font-medium text-rose-600' : 'text-slate-400'}`}>
+                            {getExpiryLabel(getDaysToExpiry(product.expirationDate), true)}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <StatusBadge status={product.status} />
